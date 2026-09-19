@@ -27,7 +27,26 @@ const activities = [
   { id: 26, title: '学院校园实践交流会', tag: '学院通知', date: '09月21日 15:00', place: '线上会议', source: '计算机学院', sourceType: 'blue-chip', state: '报名中', stateType: 'pending', intro: '面向全校同学的校园实践交流，围绕学习与实践经验展开分享。', time: '2026年09月21日 15:00', location: '线上会议室', color: 'green' }
 ];
 
-let favorites = new Set([3, 6, 11, 14, 17, 21]);
+const STORAGE_KEYS = {
+  favorites: 'campus-activity-hub:favorites',
+  reminders: 'campus-activity-hub:reminders'
+};
+
+function readStoredSet(key, fallback) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(key) || 'null');
+    return Array.isArray(stored) ? new Set(stored.map(Number)) : new Set(fallback);
+  } catch {
+    return new Set(fallback);
+  }
+}
+
+function persistSet(key, values) {
+  localStorage.setItem(key, JSON.stringify([...values]));
+}
+
+let favorites = readStoredSet(STORAGE_KEYS.favorites, [3, 6, 11, 14, 17, 21]);
+let reminders = readStoredSet(STORAGE_KEYS.reminders, []);
 let activeCategory = 'all';
 let activeQuickFilter = null;
 let activeView = 'overview';
@@ -106,7 +125,7 @@ document.addEventListener('click', (event) => {
   const openButton = event.target.closest('.open-event');
   if (openButton) { openDrawer(openButton.dataset.id); return; }
   const saveButton = event.target.closest('[data-save]');
-  if (saveButton) { const id = Number(saveButton.dataset.save); favorites.has(id) ? favorites.delete(id) : favorites.add(id); renderActivities(); showToast(favorites.has(id) ? '已加入收藏' : '已取消收藏'); return; }
+  if (saveButton) { const id = Number(saveButton.dataset.save); favorites.has(id) ? favorites.delete(id) : favorites.add(id); persistSet(STORAGE_KEYS.favorites, favorites); renderActivities(); showToast(favorites.has(id) ? '已加入收藏' : '已取消收藏'); return; }
   const navButton = event.target.closest('.nav-item');
   if (navButton) { setView(navButton.dataset.view); return; }
   const viewButton = event.target.closest('[data-view="events"]');
@@ -118,8 +137,10 @@ document.addEventListener('click', (event) => {
   if (event.target.closest('#category-filter')) { document.querySelector('#category-menu').classList.toggle('hidden'); return; }
   if (!event.target.closest('#category-menu')) document.querySelector('#category-menu').classList.add('hidden');
   if (event.target.closest('#drawer-close') || event.target === backdrop) { closeDrawer(); return; }
-  if (event.target.closest('#drawer-save')) { const id = Number(event.target.closest('#drawer-save').dataset.id); favorites.has(id) ? favorites.delete(id) : favorites.add(id); renderActivities(); openDrawer(id); showToast(favorites.has(id) ? '已加入收藏' : '已取消收藏'); return; }
-  if (event.target.closest('#drawer-reminder') || event.target.closest('#create-reminder')) { showToast('已加入提醒，活动开始前会通知你'); return; }
+  if (event.target.closest('#drawer-save')) { const id = Number(event.target.closest('#drawer-save').dataset.id); favorites.has(id) ? favorites.delete(id) : favorites.add(id); persistSet(STORAGE_KEYS.favorites, favorites); renderActivities(); openDrawer(id); showToast(favorites.has(id) ? '已加入收藏' : '已取消收藏'); return; }
+  const reminderButton = event.target.closest('#drawer-reminder');
+  if (reminderButton) { const id = Number(reminderButton.dataset.id); reminders.add(id); persistSet(STORAGE_KEYS.reminders, reminders); showToast('已加入提醒，活动开始前会通知你'); return; }
+  if (event.target.closest('#create-reminder')) { showToast('请先打开活动详情，再加入对应提醒'); return; }
 });
 
 searchInput.addEventListener('input', renderActivities);
